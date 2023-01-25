@@ -46,9 +46,9 @@ public class BooleanSearchEngine implements SearchEngine {
        // int pagesCount = reader.getNumberOfPages();
        // System.out.println(pagesCount);
 
-       // TextExtractionStrategy strategy = (TextExtractionStrategy) new SimpleTextExtractionStrategy();
+        TextExtractionStrategy strategy = (TextExtractionStrategy) new SimpleTextExtractionStrategy();
 
-       //  String myText = PdfTextExtractor.getTextFromPage(2, (ITextExtractionStrategy) strategy);
+         String myText = PdfTextExtractor.getTextFromPage(2, strategy);
 
 
        // System.out.println(myText);
