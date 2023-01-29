@@ -1,65 +1,59 @@
-import com.itextpdf.kernel.pdf.PdfPage;
+import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfReader;
 import com.itextpdf.kernel.pdf.canvas.parser.PdfTextExtractor;
-import com.itextpdf.kernel.pdf.canvas.parser.listener.ITextExtractionStrategy;
-import com.itextpdf.kernel.pdf.canvas.parser.listener.SimpleTextExtractionStrategy;
-import com.itextpdf.text.pdf.parser.TextExtractionStrategy;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class BooleanSearchEngine implements SearchEngine {
-    //???
+    Map<String, List<PageEntry>> foundWords = new HashMap<>();
+    //ключом будет слово, которое ищет пользователь, значением - экземпляр класса, содержащий информацию
+    //о названии документа, странице и количестве повторов слова на странице
 
     public BooleanSearchEngine(File pdfsDir) throws IOException {
-        // прочтите тут все pdf и сохраните нужные данные,
-        // тк во время поиска сервер не должен уже читать файлы
-        // нужно для каждой страницы создать мапу, где ключом будет слово, а значением
-        // количество повторов этого слова на данной странице
-        // все эти мапы должны быть в листе, на один пдф - один лист, называется по названию документа
+        List<File> filesInDirectory = new ArrayList<>(Arrays.asList(pdfsDir.listFiles()));
+        //формируем список файлов в папке
+        for (int i = 0; i < filesInDirectory.size(); i++) {
+            // циклом проходим по всем файлам в списке
+            var doc = new PdfDocument(new PdfReader(filesInDirectory.get(i)));
+            // для каждого файла создаем документ
+            for (int pageNumber = 1; pageNumber < doc.getNumberOfPages(); pageNumber++) {
+                // по каждой странице каждого документа извлекаем текст в переменную стринг
+                String text = PdfTextExtractor.getTextFromPage(doc.getPage(pageNumber));
+                var words = text.split("\\P{IsAlphabetic}+");
+                Map<String, Integer> wordAsKey = new HashMap<>();
+                // создаем мапу для хранения списка слов и количества повторов для каждого слова
+                for (var word : words) {
+                    if (word.isEmpty()) {
+                        continue;
+                    }
+                    word = word.toLowerCase();
+                    // приводим все слова к нижнему регистру
+                    wordAsKey.put(word, wordAsKey.getOrDefault(word, 0) + 1);
+                    //заполняем мапу
+                }
+                for (var word : wordAsKey.entrySet()) {
+                    List<PageEntry> numberOfWords;
+                    //создаем список экземпляров класса Пэйджэнтри
+                    if (foundWords.containsKey(word.getKey())) {
+                        numberOfWords = foundWords.get(word.getKey());
 
-        try (Stream<Path> paths = Files.walk(Paths.get(String.valueOf(pdfsDir)))) {
-            paths
-                    .filter(Files::isRegularFile);
-                   // .collect(Collectors.toList())
-                //  .forEach(System.out::println);
-           // System.out.println(paths.count());
+                    } else {
+                        numberOfWords = new ArrayList<>();
+                    }
+                    numberOfWords.add(new PageEntry(filesInDirectory.get(i).getName(), pageNumber, word.getValue()));
+                    Collections.sort(numberOfWords, Collections.reverseOrder());
+                    foundWords.put(word.getKey(), numberOfWords);
+                    //заполняем мапу парами слово - экземпляр класса пэйджэнтри
+                }
+            }
         }
-       // List<String> myPdfs = (List<String>) Files.walk(Paths.get(String.valueOf(pdfsDir)));
-        //System.out.println(myPdfs);
-       List<Path> my = Files.walk(Paths.get(String.valueOf(pdfsDir)))
-                .filter(Files::isRegularFile)
-                .collect(Collectors.toList());
-
-        System.out.println(my.stream().count());
-        System.out.println(my.get(1).getFileName());
-        System.out.println(my.get(1).getNameCount());
-        System.out.println(my.get(2).getFileName());
-        PdfReader reader = new PdfReader(String.valueOf(my.get(1)));
-       // int pagesCount = reader.getNumberOfPages();
-       // System.out.println(pagesCount);
-
-        TextExtractionStrategy strategy = (TextExtractionStrategy) new SimpleTextExtractionStrategy();
-
-         String myText = PdfTextExtractor.getTextFromPage(2, strategy);
-
-
-       // System.out.println(myText);
-        System.out.println(reader.getFileLength());
-         // String pages = reader.readStream(1);
-        //System.out.println(pages);
     }
 
     @Override
     public List<PageEntry> search(String word) {
-        // тут реализуйте поиск по слову
-        return Collections.emptyList();
+        return foundWords.get(word.toLowerCase());
     }
+    // возвращаем список экземпляров класса пэйджэнтри, соответствующий запрашиваемому слову
 }
